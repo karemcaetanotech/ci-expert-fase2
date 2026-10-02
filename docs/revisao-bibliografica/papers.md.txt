@@ -1,0 +1,1208 @@
+# Revisão Bibliográfica – CI-EXPERT Fase 2
+
+Este documento reúne as análises dos trabalhos utilizados na revisão
+bibliográfica do projeto, com foco em verificação, injeção de falhas,
+tolerância a falhas e processadores RISC-V.
+
+O objetivo é identificar metodologias, ferramentas, modelos de falha,
+métricas e benchmarks que possam contribuir para a definição da
+metodologia de verificação e fault injection aplicada ao RVX.
+
+---
+
+# Paper 1 – Chiffre: A Configurable Hardware Fault Injection Framework for RISC-V Systems
+
+## Identificação
+
+**Título:** Chiffre: A Configurable Hardware Fault Injection Framework for RISC-V Systems
+
+**Autores:** Schuyler Eldridge, Alper Buyuktosunoglu e Pradip Bose
+
+**Ano:** 2018
+
+**Evento:** CARRV 2018 – Workshop on Computer Architecture Research with RISC-V
+
+**Código-fonte:** IBM/Chiffre – GitHub
+
+**Licença:** Apache 2.0
+
+---
+
+## Objetivo
+
+O trabalho apresenta o Chiffre, um framework open source desenvolvido
+para inserir mecanismos configuráveis de injeção de falhas em projetos
+de hardware.
+
+O framework permite que os mecanismos de fault injection sejam inseridos
+durante o processo de geração do hardware e posteriormente configurados
+durante a execução dos experimentos.
+
+---
+
+## Processador utilizado
+
+O estudo de caso utiliza o processador RISC-V Rocket Chip.
+
+O repositório também disponibiliza uma integração específica com o
+Rocket Chip para realização dos experimentos de fault injection.
+
+---
+
+## Metodologia de Fault Injection
+
+O Chiffre utiliza transformações em FIRRTL para inserir automaticamente
+mecanismos de injeção de falhas nos componentes selecionados do circuito.
+
+O fluxo geral apresentado no trabalho envolve:
+
+1. seleção dos componentes que serão instrumentados;
+2. inserção dos fault injectors;
+3. conexão dos injetores através de uma scan chain;
+4. configuração das falhas;
+5. execução do processador;
+6. observação do comportamento do sistema após a injeção.
+
+A análise do repositório confirmou que os fault injectors podem ser
+configurados durante a execução.
+
+---
+
+## Tipos de falhas
+
+Foram identificados três mecanismos principais de fault injection.
+
+### StuckAt
+
+Permite selecionar determinados bits e forçá-los para valores definidos,
+possibilitando representar falhas stuck-at-0 e stuck-at-1.
+
+### CycleInjector
+
+Permite realizar bit-flips em um ciclo específico da execução.
+
+O ciclo e os bits afetados podem ser configurados antes do experimento.
+
+### LfsrInjector
+
+Utiliza um LFSR para controlar a ocorrência pseudoaleatória de bit-flips.
+
+O mecanismo utiliza uma semente e um parâmetro denominado `difficulty`.
+
+---
+
+## Alvos de injeção
+
+O framework apresentado no paper permite a instrumentação de:
+
+- registradores;
+- wires/sinais.
+
+No estudo de caso com o Rocket Chip, foram realizadas injeções em
+registradores de controle e status (CSRs).
+
+O trabalho não apresenta suporte à injeção diretamente em memórias.
+
+---
+
+## Tecnologias utilizadas
+
+Foram identificadas as seguintes tecnologias:
+
+- RISC-V;
+- Rocket Chip;
+- Chisel;
+- FIRRTL;
+- Scala;
+- Verilog;
+- FPGA;
+- scan chain;
+- RoCC (Rocket Custom Coprocessor);
+- testes bare-metal.
+
+---
+
+## Código disponível
+
+O código-fonte do Chiffre encontra-se disponível publicamente no GitHub
+sob licença Apache 2.0.
+
+A análise inicial do repositório confirmou a existência de código-fonte,
+testes, utilitários e exemplos de integração.
+
+Entre os principais diretórios observados estão:
+
+- `src`;
+- `tests`;
+- `le-chiffre`;
+- `utils/bin`;
+- `project`.
+
+Também foram identificados arquivos como `Makefile` e `build.sbt`.
+
+A implementação é predominantemente desenvolvida em Scala em função da
+utilização de Chisel/FIRRTL.
+
+---
+
+## Estrutura do código-fonte
+
+A análise do diretório principal mostrou a seguinte organização:
+
+`src/main/scala/chiffre/`
+
+- `inject`;
+- `passes`;
+- `scan`;
+- `util`;
+- `InjectorInfo.scala`;
+- `Instrumentation.scala`;
+- `ScanChain.scala`;
+- `ScanField.scala`.
+
+Dentro de `inject` foram identificados:
+
+- `Injector.scala`;
+- `IdentityInjector.scala`;
+- `LfsrInjector.scala`;
+- `StuckAt.scala`;
+- `CycleInjector.scala`.
+
+Os arquivos `Injector.scala`, `StuckAt.scala`, `CycleInjector.scala` e
+`LfsrInjector.scala` foram analisados durante as atividades de 09/09/2026.
+
+---
+
+## Modos de utilização
+
+A documentação apresenta dois modos principais de utilização.
+
+### 1. Standalone Injection
+
+No modo Standalone Injection é definido um controlador responsável por
+gerenciar uma determinada scan chain.
+
+Os componentes que deverão receber fault injection são marcados através
+do método `isFaulty`.
+
+O método permite indicar:
+
+- o componente instrumentado;
+- a scan chain;
+- o tipo de fault injector.
+
+O exemplo disponibilizado utiliza:
+
+- `LfsrInjector32`;
+- `StuckAt`;
+- `CycleInjector32`.
+
+### 2. Rocket-Chip Assisted Injection
+
+Nesse modo, o Chiffre fornece um controlador denominado `LeChiffre`.
+
+O `LeChiffre` é implementado como um Rocket Custom Coprocessor (RoCC).
+
+O repositório também disponibiliza um patch para tornar determinados
+CSRs do Rocket Chip fault-injectable e um programa bare-metal para
+testar a injeção.
+
+---
+
+# Análise do código-fonte
+
+## Análise do arquivo Injector.scala
+
+O arquivo `Injector.scala` define a estrutura base utilizada pelos
+mecanismos de fault injection.
+
+Ele não implementa diretamente um modelo específico de falha.
+
+### Interface
+
+A classe `InjectorIo` possui:
+
+- `in` – entrada;
+- `out` – saída;
+- `scan` – interface de configuração pela scan chain.
+
+A largura do sinal é parametrizada por `bitWidth`.
+
+### Habilitação
+
+A classe base `Injector` possui o registrador:
+
+`enabled`
+
+Inicialmente, o injector está desabilitado.
+
+A interface de scan participa do controle de habilitação/desabilitação
+do mecanismo.
+
+### InjectorBitwise
+
+Também foi identificada a classe `InjectorBitwise`.
+
+Essa estrutura permite construir injectors para sinais de múltiplos bits
+a partir de injectors individuais.
+
+Cada bit pode passar por uma instância individual do mecanismo de
+fault injection.
+
+Conceitualmente:
+
+sinal original  
+→ fault injector  
+→ sinal normal ou alterado  
+→ restante do circuito
+
+Essa arquitetura é relevante como referência para uma possível
+instrumentação do RVX.
+
+---
+
+## Análise do arquivo StuckAt.scala
+
+A análise de `StuckAt.scala` permitiu compreender como o Chiffre
+implementa falhas stuck-at.
+
+O mecanismo utiliza dois registradores principais:
+
+- `mask`;
+- `value`.
+
+### Mask
+
+`mask` determina quais bits serão afetados.
+
+### Value
+
+`value` determina o valor que será colocado nos bits selecionados.
+
+O sinal de seleção é calculado utilizando `mask` e o estado `enabled`.
+
+A saída é definida pela expressão:
+
+`io.out := (io.in & ~select) | (value & select)`
+
+Assim:
+
+- bits não selecionados preservam o valor original;
+- bits selecionados recebem o valor definido em `value`.
+
+Isso permite representar:
+
+- stuck-at-0;
+- stuck-at-1.
+
+### Configuração
+
+Os parâmetros `mask` e `value` são carregados serialmente através da
+scan chain.
+
+Durante essa configuração, o injector é desabilitado.
+
+A estrutura `StuckAtInjectorInfo` define os campos:
+
+- `Mask(bitWidth)`;
+- `StuckAt(bitWidth)`.
+
+### Relevância para o RVX
+
+O mecanismo demonstra uma forma relativamente simples de selecionar
+bits de um sinal e forçá-los para 0 ou 1.
+
+Esse conceito poderá ser estudado como referência para implementar
+falhas permanentes em sinais ou registradores internos do RVX.
+
+---
+
+## Análise do arquivo CycleInjector.scala
+
+O arquivo `CycleInjector.scala` implementa um mecanismo de bit-flip
+programado para ocorrer em um ciclo específico.
+
+Foram identificados três registradores principais:
+
+- `cycleTarget`;
+- `cycleCounter`;
+- `flipMask`.
+
+### cycleTarget
+
+Define o ciclo no qual a falha deverá ocorrer.
+
+### cycleCounter
+
+Conta os ciclos enquanto o injector permanece habilitado.
+
+### flipMask
+
+Determina quais bits serão invertidos.
+
+A condição de disparo é:
+
+`enabled && (cycleCounter == cycleTarget)`
+
+Quando essa condição é satisfeita, a saída é calculada através de:
+
+`io.in ^ flipMask`
+
+A operação XOR inverte os bits selecionados por `flipMask`.
+
+Quando a condição não é satisfeita, a saída permanece igual à entrada.
+
+### Comportamento temporal
+
+Enquanto o injector está habilitado, `cycleCounter` é incrementado.
+
+Quando o contador alcança `cycleTarget`, ocorre a injeção.
+
+Após a ocorrência da falha, o próprio injector é desabilitado.
+
+Portanto, o mecanismo representa uma injeção pontual de bit-flip em um
+instante determinado da execução.
+
+### Configuração
+
+Durante a configuração pela scan chain:
+
+- o injector é desabilitado;
+- `cycleCounter` é reinicializado;
+- `cycleTarget` é carregado;
+- `flipMask` é carregado.
+
+A estrutura `CycleInjectorInfo` define:
+
+- `Cycle(cycleWidth)`;
+- `CycleInject(bitWidth)`.
+
+Também foi identificada a classe `CycleInjector32`, que utiliza largura
+de 32 bits para representar o ciclo.
+
+### Relevância para o RVX
+
+Esse mecanismo é relevante porque permite controlar:
+
+- onde ocorrerá a falha;
+- quais bits serão afetados;
+- quando a falha será injetada.
+
+A possibilidade de selecionar o ciclo poderá ser importante para
+campanhas reproduzíveis de fault injection nas diferentes versões
+do RVX.
+
+---
+
+## Análise do arquivo LfsrInjector.scala
+
+O arquivo `LfsrInjector.scala` implementa um mecanismo de bit-flip
+controlado por uma sequência pseudoaleatória.
+
+Foram identificados dois parâmetros principais:
+
+- `seed`;
+- `difficulty`.
+
+### Seed
+
+`seed` define o estado utilizado para inicializar o LFSR.
+
+### Difficulty
+
+`difficulty` é utilizado como limiar na condição que determina a
+ocorrência da falha.
+
+O LFSR é instanciado através de:
+
+`perfect.random.Lfsr`
+
+A condição de disparo observada é:
+
+`enabled && (lfsr.io.y <= difficulty)`
+
+Portanto, a falha somente pode ocorrer quando o injector está habilitado
+e o valor produzido pelo LFSR satisfaz a condição configurada.
+
+A saída é definida por:
+
+`io.out := Mux(fire, ~io.in, io.in)`
+
+Como essa implementação básica trabalha com um bit:
+
+- quando `fire` é falso, o bit permanece inalterado;
+- quando `fire` é verdadeiro, o bit é invertido.
+
+### Configuração
+
+`seed` e `difficulty` são carregados através da scan chain.
+
+A estrutura `LfsrInjectorInfo` associa campos `Seed` e `Difficulty`
+aos bits instrumentados.
+
+### Sinais de múltiplos bits
+
+A classe `LfsrInjectorN` utiliza `InjectorBitwise`.
+
+Dessa forma, um sinal de múltiplos bits pode ser instrumentado através
+da composição de injectors individuais de um bit.
+
+Também foi identificada a classe `LfsrInjector32`, que utiliza um LFSR
+com largura de 32 bits.
+
+### Observação
+
+A análise realizada permite afirmar que `difficulty` participa do limiar
+utilizado para determinar a ocorrência do bit-flip.
+
+Entretanto, ainda não foi analisada a implementação interna de
+`perfect.random.Lfsr`.
+
+Por esse motivo, ainda não foi determinada quantitativamente a relação
+entre `difficulty` e a probabilidade exata de ocorrência de uma falha.
+
+### Relevância para o RVX
+
+Esse mecanismo apresenta uma estratégia para realização de injeções
+pseudoaleatórias.
+
+Isso poderá ser relevante para futuras campanhas que busquem exercitar
+diferentes instantes e condições de falha.
+
+---
+
+## Comparação inicial dos mecanismos
+
+Após a análise do código, foi possível estabelecer a seguinte comparação:
+
+| Mecanismo | Controle principal | Efeito |
+|---|---|---|
+| `StuckAtInjector` | `mask` + `value` | força bits para 0 ou 1 |
+| `CycleInjector` | `cycleTarget` + `flipMask` | inverte bits em um ciclo determinado |
+| `LfsrInjector` | `seed` + `difficulty` | realiza bit-flips de forma pseudoaleatória |
+
+Os três mecanismos utilizam a infraestrutura comum de configuração do
+framework e fornecem diferentes possibilidades para campanhas de
+fault injection.
+
+---
+
+## Relação com o RVX
+
+**Relevância inicial: alta como referência metodológica.**
+
+O Chiffre apresenta uma implementação concreta de fault injection em
+um processador RISC-V e diferentes modelos de falha.
+
+A análise do código mostrou que o framework separa a estrutura comum dos
+injectors das implementações específicas dos modelos de falha.
+
+Os mecanismos analisados permitem controlar diferentes dimensões de uma
+campanha:
+
+- quais bits serão afetados;
+- qual modelo de falha será utilizado;
+- quando a falha ocorrerá;
+- configuração determinística ou pseudoaleatória.
+
+Esses conceitos poderão contribuir para a futura definição da metodologia
+do projeto.
+
+Uma campanha para o RVX poderá eventualmente considerar parâmetros como:
+
+ponto de injeção  
++ bit afetado  
++ modelo de falha  
++ momento da injeção  
++ execução de benchmark  
++ classificação do resultado
+
+Essa estrutura ainda representa uma possibilidade metodológica e não uma
+decisão final do projeto.
+
+Ainda não foi demonstrado que o Chiffre possa ser utilizado diretamente
+no RTL do RVX.
+
+Neste momento permanecem duas possibilidades:
+
+1. estudar a viabilidade de adaptação de partes do Chiffre;
+2. utilizar o Chiffre como referência para desenvolver uma infraestrutura
+   própria compatível com o RVX.
+
+---
+
+## Limitações identificadas
+
+Foram identificadas inicialmente as seguintes limitações:
+
+- dependência de Chisel/FIRRTL;
+- integração pronta direcionada principalmente ao Rocket Chip;
+- ausência de suporte direto a memórias no trabalho analisado;
+- compatibilidade com o RTL do RVX ainda desconhecida;
+- automação completa das campanhas poderá exigir infraestrutura adicional;
+- partes adicionais do código do Chiffre ainda precisam ser estudadas.
+
+---
+
+## Métricas
+
+Ainda não foi definido um conjunto final de métricas.
+
+As próximas referências deverão ser utilizadas para investigar métricas
+como:
+
+- número de falhas injetadas;
+- falhas detectadas;
+- falhas mascaradas;
+- falhas que geram resultado incorreto;
+- falhas que provocam travamento;
+- eficiência dos mecanismos de tolerância a falhas.
+
+Essas categorias são, neste momento, itens de investigação e não uma
+metodologia já definida.
+
+---
+
+## Benchmarks
+
+Ainda não foi definido um conjunto de benchmarks para os experimentos.
+
+Os próximos trabalhos deverão ser analisados buscando benchmarks
+utilizados em campanhas de fault injection e avaliação de
+processadores RISC-V.
+
+---
+
+## Questões já respondidas
+
+A análise realizada até 09/09/2026 permitiu responder:
+
+- Existe código disponível? Sim.
+- O código é público? Sim.
+- Existe licença? Sim, Apache 2.0.
+- Existem testes e exemplos? Sim.
+- Existe integração com Rocket Chip? Sim.
+- Existem diferentes modelos de fault injection? Sim.
+- Existe uma interface comum para os injectors? Sim.
+- Existe suporte estrutural para sinais de múltiplos bits? Sim.
+- Como o StuckAt altera o sinal? Utilizando `mask` e `value`.
+- É possível representar stuck-at-0 e stuck-at-1? Sim.
+- Como o CycleInjector determina o momento da falha? Comparando
+  `cycleCounter` com `cycleTarget`.
+- Como o CycleInjector realiza o bit-flip? Utilizando XOR com `flipMask`.
+- A injeção do CycleInjector permanece ativa? Não. O injector é
+  desabilitado após o disparo.
+- Como o LfsrInjector decide quando inverter um bit? Através da comparação
+  entre a saída do LFSR e `difficulty`, enquanto o injector está habilitado.
+- Como o LfsrInjector realiza a alteração? Invertendo o bit de entrada.
+- O LfsrInjector suporta sinais maiores? Sim, através de
+  `InjectorBitwise`.
+
+---
+
+## Questões ainda em investigação
+
+- Como funciona internamente `perfect.random.Lfsr`?
+- Qual é a relação quantitativa entre `difficulty` e a probabilidade de
+  injeção?
+- Como funcionam as transformações presentes em `passes`?
+- Como funciona em detalhes a infraestrutura de `scan`?
+- Como `Instrumentation.scala` realiza a instrumentação?
+- Como `ScanChain.scala` organiza a cadeia de configuração?
+- Quais dependências são necessárias para compilar a versão atual?
+- O código ainda pode ser compilado no ambiente atual?
+- É possível aplicar diretamente a abordagem a RTL Verilog/SystemVerilog?
+- Existe um caminho tecnicamente adequado entre o RTL do RVX e FIRRTL?
+- É mais adequado adaptar o Chiffre ou implementar uma infraestrutura
+  própria?
+- Quais pontos do RVX deverão receber fault injection?
+- Como aplicar a mesma campanha às diferentes versões do RVX?
+- Como automatizar as campanhas?
+- Como classificar os resultados?
+- Quais métricas deverão ser utilizadas?
+- Quais benchmarks deverão ser utilizados?
+- Como medir quantitativamente a melhoria obtida pelas versões
+  tolerantes a falhas?
+
+---
+
+## Conclusão parcial – 09/09/2026
+
+O Chiffre foi identificado como uma referência relevante para o projeto
+CI-EXPERT por apresentar uma metodologia e uma implementação concreta de
+fault injection aplicada a sistemas RISC-V.
+
+Durante a análise inicial do paper e do repositório foi possível
+compreender a arquitetura geral do framework e estudar em código os
+principais mecanismos de injeção de falhas.
+
+Foram analisados:
+
+- `Injector.scala`;
+- `StuckAt.scala`;
+- `CycleInjector.scala`;
+- `LfsrInjector.scala`.
+
+A análise permitiu compreender a estrutura comum dos injectors e três
+estratégias distintas de fault injection: falhas stuck-at, bit-flips
+programados em ciclos específicos e bit-flips controlados por uma
+sequência pseudoaleatória.
+
+Esses resultados fornecem uma base inicial para discutir como estruturar
+uma campanha de fault injection no RVX.
+
+Entretanto, a análise do Chiffre ainda não está concluída integralmente.
+Partes relacionadas à instrumentação FIRRTL, scan chain, passes,
+dependências e integração com o fluxo do RVX permanecem em investigação.
+
+Também ainda não foram definidos os modelos finais de falha, métricas,
+benchmarks ou a estratégia de verificação que será adotada pelo projeto.
+
+---
+
+## Próximas ações
+
+Na próxima sessão:
+
+1. decidir se é necessário aprofundar imediatamente a análise interna
+   do Chiffre ou avançar para outras referências bibliográficas;
+2. continuar a revisão de trabalhos sobre fault injection em RISC-V,
+   priorizando trabalhos relacionados a tolerância a falhas e TMR;
+3. investigar trabalhos sobre verificação de processadores RISC-V;
+4. investigar formal verification aplicada a RISC-V;
+5. identificar métricas utilizadas em campanhas de fault injection;
+6. identificar benchmarks utilizados para avaliação de processadores;
+7. iniciar posteriormente a análise técnica das versões do RVX;
+8. relacionar os resultados da literatura com as versões convencional
+   e tolerantes a falhas disponíveis no projeto.
+
+---
+
+
+10/9/2026
+
+## Análise do arquivo Instrumentation.scala
+
+O arquivo `Instrumentation.scala` permitiu compreender como um componente
+é inicialmente marcado para receber fault injection.
+
+Foram identificadas as estruturas `ChiffreController`,
+`ChiffreInjector` e `ChiffreInjectee`.
+
+O método `isFaulty(component, id, gen)` recebe:
+
+- o componente que deverá ser instrumentado;
+- o identificador da scan chain;
+- a classe do injector.
+
+A chamada não modifica diretamente o componente.
+
+Ela cria uma `FaultInjectionAnnotation` contendo essas informações e
+solicita a execução de `FaultInstrumentationTransform`.
+
+O fluxo inicial identificado é:
+
+`isFaulty()`
+→ `FaultInjectionAnnotation`
+→ `FaultInstrumentationTransform`
+
+Também foi identificado que `ChiffreController` registra o master da
+scan chain através de `ScanChainAnnotation`.
+
+---
+
+## Análise do arquivo FaultInstrumentation.scala
+
+O arquivo `FaultInstrumentation.scala` mostra como a instrumentação é
+efetivamente inserida no circuito FIRRTL.
+
+A transformação identifica o componente selecionado e determina sua
+largura.
+
+Em seguida, instancia dinamicamente o tipo de fault injector associado
+ao componente.
+
+Também são criados:
+
+- uma instância do injector;
+- um novo sinal para representar o valor instrumentado;
+- conexões entre o sinal original e o injector;
+- anotações relacionadas à scan chain.
+
+O código redireciona referências ao componente original para o novo
+sinal instrumentado.
+
+Conceitualmente:
+
+sinal original
+→ fault injector
+→ sinal instrumentado
+→ restante do circuito
+
+Foi identificada também uma restrição explícita que impede a
+instrumentação de `ExtModule` através desse mecanismo.
+
+---
+
+## Análise do arquivo FaultInstrumentationTransform.scala
+
+O arquivo `FaultInstrumentationTransform.scala` funciona como
+orquestrador das transformações necessárias para realizar a
+instrumentação.
+
+A estrutura `FaultInjectionAnnotation` contém:
+
+- componente alvo;
+- identificador da scan chain;
+- classe do injector.
+
+A transformação coleta essas anotações e organiza os pontos de
+fault injection por módulo.
+
+Em seguida, executa uma sequência contendo:
+
+`FaultInstrumentation`
+→ passes auxiliares FIRRTL
+→ `ScanChainTransform`
+→ `WiringTransform`
+
+As etapas intermediárias realizam operações de preparação e verificação
+necessárias após a alteração do circuito.
+
+Após o processamento, as anotações de fault injection utilizadas são
+removidas.
+
+---
+
+## Análise do arquivo ScanChainTransform.scala
+
+O arquivo `ScanChainTransform.scala` é responsável por organizar a
+infraestrutura de scan chain utilizada pelos injectors.
+
+A estrutura `ScanChainInfo` mantém informações sobre:
+
+- master;
+- entradas dos slaves;
+- saídas dos slaves;
+- injectors;
+- descrição dos injectors.
+
+As anotações são processadas e agrupadas de acordo com o identificador
+da scan chain.
+
+O código também verifica se existe um master correspondente ao `scanId`.
+Caso não exista, uma exceção é gerada.
+
+A cadeia é organizada conceitualmente como:
+
+master
+→ injector 1
+→ injector 2
+→ ...
+→ master
+
+As conexões são descritas através de `SourceAnnotation` e
+`SinkAnnotation` e posteriormente processadas pelo `WiringTransform`.
+
+Também foi identificado que a transformação gera o arquivo:
+
+`scan-chain.json`
+
+Esse arquivo contém informações sobre as scan chains e os componentes
+fault-injectable associados.
+
+---
+
+## Arquitetura consolidada do framework
+
+Após a análise do paper e dos principais arquivos do código-fonte,
+o fluxo geral do Chiffre pode ser representado como:
+
+`isFaulty(component, scanId, Injector)`
+→ `FaultInjectionAnnotation`
+→ `FaultInstrumentationTransform`
+→ `FaultInstrumentation`
+→ instanciação do injector
+→ criação do sinal instrumentado
+→ redirecionamento das referências
+→ criação das anotações de scan chain
+→ `ScanChainTransform`
+→ organização da cadeia
+→ `WiringTransform`
+→ conexão da infraestrutura
+→ geração de `scan-chain.json`
+
+Essa arquitetura mostra que o Chiffre utiliza transformações FIRRTL para
+automatizar a inserção e configuração dos mecanismos de fault injection.
+
+---
+
+## Status da análise – atualização de 10/09/2026
+
+A análise do Chiffre é considerada **suficiente para esta etapa do
+projeto**.
+
+Foram analisados:
+
+- paper;
+- estrutura geral do repositório;
+- `Injector.scala`;
+- `StuckAt.scala`;
+- `CycleInjector.scala`;
+- `LfsrInjector.scala`;
+- `Instrumentation.scala`;
+- `FaultInstrumentation.scala`;
+- `FaultInstrumentationTransform.scala`;
+- `ScanChainTransform.scala`.
+
+Com isso, foram compreendidos os principais mecanismos de fault
+injection e o fluxo utilizado para instrumentar e configurar os
+componentes.
+
+Não foi realizada uma análise exaustiva de todo o repositório.
+
+O objetivo desta investigação foi obter conhecimento suficiente para
+utilizar o Chiffre como referência metodológica e arquitetural e avaliar
+posteriormente quais conceitos podem ser aplicados ou adaptados ao RVX.
+
+A compatibilidade direta entre o Chiffre e o fluxo RTL do RVX permanece
+em investigação.
+
+**Status: análise suficiente para esta fase concluída em 10/09/2026.**
+
+# Paper 2
+
+
+# Paper 2 – Fault Injection of TMR Open Source RISC-V Processors Using Dynamic Partial Reconfiguration on SRAM-Based FPGAs
+
+## Identificação
+
+**Título:** Fault Injection of TMR Open Source RISC-V Processors Using Dynamic Partial Reconfiguration on SRAM-Based FPGAs
+
+**Autores:** Andrew E. Wilson e Michael Wirthlin
+
+**Ano:** 2021
+
+**Evento:** IEEE Space Computing Conference (SCC)
+
+---
+
+## Objetivo
+
+O trabalho investiga a sensibilidade de processadores soft-core RISC-V
+implementados em FPGA SRAM à ocorrência de Single Event Upsets (SEUs).
+
+Os autores utilizam fault injection para avaliar o comportamento dos
+processadores sem proteção e também versões protegidas com Triple
+Modular Redundancy (TMR).
+
+O objetivo inclui avaliar quantitativamente quanto a aplicação de TMR
+reduz a sensibilidade dos processadores às falhas.
+
+---
+
+## Processadores avaliados
+
+O trabalho utiliza cinco processadores:
+
+- MicroBlaze;
+- PicoRV32;
+- Kronos;
+- Taiga;
+- VexRiscv.
+
+O MicroBlaze é utilizado como referência não RISC-V.
+
+Os outros quatro são processadores baseados na ISA RISC-V.
+
+Cada processador é avaliado em uma implementação sem mitigação e em uma
+implementação protegida com TMR.
+
+---
+
+## Plataforma experimental
+
+Os experimentos são realizados em FPGA SRAM.
+
+O trabalho utiliza dispositivos Xilinx Kintex UltraScale+ e uma
+infraestrutura automatizada de fault injection.
+
+A campanha utiliza reconfiguração parcial dinâmica para alterar bits da
+memória de configuração da FPGA sem a necessidade de reconfigurar
+completamente o dispositivo a cada experimento.
+
+---
+
+## Modelo de falha
+
+O trabalho concentra-se em Single Event Upsets (SEUs) na memória de
+configuração da FPGA, denominada CRAM.
+
+As falhas são emuladas modificando bits da configuração através da
+interface ICAP.
+
+Portanto, o modelo utilizado neste trabalho é diferente de uma injeção
+direta em registradores internos do processador.
+
+A falha é introduzida na configuração da FPGA e posteriormente é
+observado se essa alteração afeta o funcionamento do processador.
+
+---
+
+## Metodologia de Fault Injection
+
+A campanha segue, de forma geral, o seguinte fluxo:
+
+1. restaurar o DUT para um estado conhecido;
+2. executar e verificar o DUT;
+3. selecionar e injetar uma falha na configuração;
+4. executar novamente o DUT;
+5. verificar o comportamento após a injeção;
+6. registrar o resultado;
+7. repetir o processo para novas falhas.
+
+A metodologia permite comparar a sensibilidade das implementações
+originais com as versões protegidas por TMR.
+
+---
+
+## Aplicação de TMR
+
+O trabalho utiliza TMR de granularidade fina.
+
+A ferramenta SpyDrNet é utilizada para modificar a netlist e aplicar
+automaticamente a redundância.
+
+A estratégia envolve triplicação de elementos do projeto, incluindo:
+
+- flip-flops;
+- LUTs;
+- BRAMs;
+- DSPs.
+
+Também são inseridos votadores triplicados.
+
+Isso permite comparar cada processador antes e depois da aplicação da
+técnica de tolerância a falhas.
+
+---
+
+## Benchmark
+
+O benchmark utilizado é o Dhrystone.
+
+Foram utilizadas 3.000 iterações para avaliação de desempenho.
+
+O Dhrystone também participa do fluxo experimental utilizado para
+verificar o funcionamento do DUT durante a campanha.
+
+Entretanto, os próprios autores reconhecem que o Dhrystone não verifica
+completamente todas as funcionalidades do processador.
+
+Essa limitação é relevante para a definição futura dos benchmarks do
+projeto RVX.
+
+---
+
+## Campanha experimental
+
+A infraestrutura desenvolvida permite realizar grandes campanhas
+automatizadas de fault injection.
+
+O trabalho relata aproximadamente:
+
+- 15 milhões de injeções;
+- 10 dias de execução;
+- utilização de 20 FPGAs.
+
+Mesmo com essa quantidade de experimentos, a campanha correspondeu a
+aproximadamente 5,84% do espaço total de possíveis injeções considerado
+pelos autores.
+
+Esse resultado demonstra o elevado custo de campanhas extensas de fault
+injection e reforça a importância de investigar estratégias eficientes
+para seleção dos experimentos.
+
+---
+
+## Métrica principal
+
+A principal métrica utilizada é a sensibilidade da CRAM.
+
+Ela é calculada como:
+
+`r = k / n`
+
+onde:
+
+- `k` representa o número de falhas observadas;
+- `n` representa o número de faults injetados.
+
+O trabalho também utiliza medidas estatísticas, incluindo desvio-padrão
+e coeficiente de variação, para avaliar a estabilidade dos resultados
+das campanhas.
+
+---
+
+## Resultados
+
+Os resultados demonstram que a aplicação de TMR reduz significativamente
+a sensibilidade dos processadores às falhas.
+
+Dependendo do processador e da região considerada, foram observadas
+reduções de sensibilidade aproximadamente entre 20x e 500x.
+
+O trabalho também demonstra que diferentes processadores apresentam
+níveis distintos de sensibilidade mesmo antes da aplicação de TMR.
+
+---
+
+## Limitações
+
+Foram identificadas limitações importantes para comparação com o projeto
+RVX.
+
+O modelo experimental concentra-se em SEUs na CRAM da FPGA.
+
+Dessa forma, o estudo não representa todos os possíveis tipos de falha
+que podem afetar um processador.
+
+O trabalho não cobre, dentro da metodologia apresentada:
+
+- SEUs fora da CRAM;
+- Single Event Transients (SETs);
+- Single Event Functional Interrupts (SEFIs).
+
+Outra limitação reconhecida pelos autores é a utilização do Dhrystone,
+que não exercita completamente a funcionalidade dos processadores.
+
+Além disso, mesmo uma campanha com milhões de injeções cobre apenas uma
+fração do espaço total possível de faults.
+
+---
+
+## Trabalhos futuros apontados pelos autores
+
+Entre as possibilidades de continuidade apresentadas estão:
+
+- utilização de benchmarks mais complexos;
+- avaliação de outros métodos de fault injection;
+- ampliação da caracterização de vulnerabilidade;
+- investigação adicional das técnicas de mitigação.
+
+---
+
+## Relação com o projeto RVX
+
+**Relevância: alta.**
+
+Este trabalho é particularmente importante porque combina:
+
+- RISC-V;
+- fault injection;
+- TMR;
+- campanhas automatizadas;
+- métricas quantitativas de sensibilidade.
+
+Ele fornece uma referência experimental para comparar versões sem
+proteção e versões protegidas.
+
+Entretanto, a abordagem utilizada é baseada em injeção na memória de
+configuração de FPGA, enquanto o Chiffre estudado no Paper 1 utiliza
+instrumentação do circuito para introduzir diferentes modelos de falha.
+
+Essa diferença mostra que existem múltiplas formas de implementar uma
+campanha de fault injection e que a estratégia adequada ao RVX ainda
+precisa ser definida.
+
+---
+
+## Relação com a possível pesquisa individual
+
+O trabalho apresenta uma questão particularmente relevante para a
+investigação atual.
+
+Mesmo utilizando aproximadamente 15 milhões de injeções, 20 FPGAs e
+10 dias de execução, apenas uma parcela do espaço possível de faults foi
+avaliada.
+
+Além disso, o próprio trabalho reconhece limitações relacionadas ao
+benchmark utilizado.
+
+Isso levanta a possibilidade de investigar estratégias mais direcionadas
+para selecionar:
+
+- testes;
+- pontos de injeção;
+- momentos de injeção;
+- componentes de interesse.
+
+Uma hipótese atualmente em investigação é utilizar informações de
+verificação e cobertura para orientar uma campanha de fault injection no
+RVX e avaliar se é possível obter uma caracterização útil de
+vulnerabilidade com uma campanha mais direcionada.
+
+Essa possibilidade ainda não é considerada uma contribuição inédita.
+
+É necessário analisar trabalhos adicionais para determinar se abordagens
+semelhantes já foram propostas e identificar precisamente o gap de
+pesquisa.
+
+---
+
+## Comparação inicial com o Chiffre
+
+| Característica | Chiffre | Wilson e Wirthlin (2021) |
+|---|---|---|
+| Arquitetura | RISC-V/Rocket Chip | Quatro RISC-V + MicroBlaze |
+| Ambiente | Chisel/FIRRTL | FPGA SRAM |
+| Fault injection | Instrumentação do circuito | Alteração da CRAM |
+| Modelos | Stuck-at e bit-flips | SEU na configuração |
+| TMR | Não é foco principal | Sim |
+| Benchmark | Testes do estudo de caso | Dhrystone |
+| Campanha massiva | Não é foco principal | Sim |
+| Métrica central | Não definida como comparação TMR | Sensibilidade da CRAM |
+| Objetivo | Framework configurável de FI | Avaliar sensibilidade e TMR |
+
+---
+
+## Questões levantadas para o projeto
+
+Após a análise deste trabalho, devem ser investigadas:
+
+- É necessário realizar milhões de injeções para caracterizar o RVX?
+- É possível selecionar pontos de injeção de maneira mais direcionada?
+- A cobertura funcional pode auxiliar nessa seleção?
+- Quais benchmarks exercitam adequadamente o RVX?
+- Quais estados/componentes internos são mais relevantes para a campanha?
+- Quais categorias de resultado devem ser utilizadas?
+- Como medir a eficiência de uma campanha além do número total de
+  injeções?
+- Como combinar mecanismos de verificação com fault injection?
+- Uma campanha dirigida pode reduzir o custo experimental mantendo
+  capacidade de identificar regiões vulneráveis?
+
+Essas questões deverão ser confrontadas com o próximo trabalho da
+revisão antes da definição da metodologia.
+
+---
+
+## Status da análise
+
+**Paper 2 analisado.**
+
+O trabalho fornece uma referência importante sobre campanhas de fault
+injection em processadores RISC-V protegidos e não protegidos e evidencia
+o custo associado a campanhas de grande escala.
+
+A análise também identificou limitações relacionadas à cobertura do
+espaço de faults e ao benchmark utilizado.
+
+Esses pontos serão utilizados na seleção e análise do Paper 3.  14092026
+# Paper 3
+
+A definir.
+
+---
+
+# Fim do dia – 09/09/2026

@@ -1,0 +1,325 @@
+# Diário de Atividades – 10/09/2026
+
+**Data:** 10/09/2026  
+**Horário de início:** 14:36  
+**Local:** Laboratório  
+**Projeto:** CI-EXPERT – Fase 2
+
+## Objetivo do dia
+
+Dar continuidade à análise do framework Chiffre iniciada em 09/09/2026,
+com foco em compreender como os mecanismos de fault injection são
+inseridos no circuito e como os injectors são configurados através
+da scan chain.
+
+O objetivo específico da atividade foi concluir uma análise suficiente
+da arquitetura do Chiffre para utilizá-lo como referência na futura
+definição da estratégia de fault injection aplicada ao RVX.
+
+## Estado inicial da atividade
+
+Ao final de 09/09/2026 já haviam sido analisados:
+
+- o paper Chiffre;
+- a estrutura geral do repositório;
+- `Injector.scala`;
+- `StuckAt.scala`;
+- `CycleInjector.scala`;
+- `LfsrInjector.scala`.
+
+Os três principais mecanismos de fault injection já haviam sido
+identificados e comparados:
+
+- stuck-at;
+- bit-flip em ciclo específico;
+- bit-flip pseudoaleatório.
+
+Permanecia necessário compreender como os componentes eram marcados
+para instrumentação, como os injectors eram inseridos no circuito
+e como a scan chain era construída.
+
+## Atividades realizadas
+
+### 1. Análise de Instrumentation.scala
+
+Foi analisado o arquivo `Instrumentation.scala`.
+
+Foram identificadas três estruturas principais:
+
+- `ChiffreController`;
+- `ChiffreInjector`;
+- `ChiffreInjectee`.
+
+Foi identificado que `ChiffreController` define o identificador
+`scanId` e registra o master da scan chain através de uma
+`ScanChainAnnotation`.
+
+Também foi analisado o método:
+
+`isFaulty(component, id, gen)`
+
+Esse método é utilizado para marcar um componente como alvo de
+fault injection.
+
+Foram identificados três parâmetros principais:
+
+- `component`: componente que será instrumentado;
+- `id`: identificador da scan chain;
+- `gen`: classe do fault injector que deverá ser utilizada.
+
+Foi identificado que `isFaulty()` cria uma
+`FaultInjectionAnnotation` e solicita a execução de
+`FaultInstrumentationTransform`.
+
+Com isso, foi possível compreender que o componente não é modificado
+diretamente no momento da chamada de `isFaulty()`.
+
+A chamada gera uma anotação FIRRTL contendo as informações necessárias
+para que uma transformação posterior realize a instrumentação.
+
+O fluxo identificado foi:
+
+`isFaulty()`
+→ `FaultInjectionAnnotation`
+→ `FaultInstrumentationTransform`
+
+### 2. Análise de FaultInstrumentation.scala
+
+Foi analisado o arquivo `FaultInstrumentation.scala`.
+
+A análise mostrou como o Chiffre modifica efetivamente o circuito após
+a identificação dos pontos de fault injection.
+
+Foi identificado que a transformação:
+
+- localiza o componente que deverá ser instrumentado;
+- determina a largura do componente;
+- verifica se o sinal possui largura válida;
+- instancia dinamicamente o tipo de fault injector selecionado;
+- cria uma instância do injector dentro do módulo;
+- cria um novo sinal para representar o valor instrumentado;
+- conecta o valor original à entrada do injector;
+- utiliza a saída do injector como valor fault-injected;
+- redireciona referências do componente para o novo sinal;
+- cria anotações necessárias para integração com a scan chain.
+
+Também foi identificada uma restrição explícita no código que impede
+a instrumentação de `ExtModule` através desse mecanismo.
+
+A análise confirmou uma arquitetura conceitual semelhante a:
+
+sinal original
+→ fault injector
+→ sinal instrumentado
+→ restante do circuito
+
+Essa análise foi importante para compreender que o Chiffre realiza
+uma transformação estrutural no circuito FIRRTL.
+
+### 3. Análise de FaultInstrumentationTransform.scala
+
+Foi analisado o arquivo `FaultInstrumentationTransform.scala`.
+
+Foi identificado que `FaultInjectionAnnotation` armazena:
+
+- componente alvo;
+- identificador da scan chain;
+- classe do injector.
+
+A transformação coleta as anotações de fault injection existentes no
+circuito e organiza os componentes por módulo.
+
+Em seguida, executa uma sequência de transformações que inclui:
+
+- `FaultInstrumentation`;
+- transformações auxiliares do FIRRTL;
+- `ScanChainTransform`;
+- `WiringTransform`.
+
+Foi identificado que as transformações auxiliares realizam operações
+de preparação, organização e verificação do circuito após a inserção
+dos novos elementos.
+
+O fluxo observado foi:
+
+`FaultInjectionAnnotation`
+→ organização dos pontos de injeção
+→ `FaultInstrumentation`
+→ passes FIRRTL
+→ `ScanChainTransform`
+→ `WiringTransform`
+
+Após o processamento, as anotações de fault injection utilizadas são
+removidas.
+
+### 4. Análise de ScanChainTransform.scala
+
+Foi analisado o arquivo `ScanChainTransform.scala`.
+
+Foi identificada a estrutura `ScanChainInfo`, utilizada para armazenar
+informações sobre:
+
+- master da scan chain;
+- entradas dos slaves;
+- saídas dos slaves;
+- injectors;
+- descrição/configuração dos injectors.
+
+O método `analyze()` processa as diferentes anotações relacionadas
+à scan chain e organiza as informações utilizando o identificador
+`scanId`.
+
+Também foi identificado que o código verifica se existe um master
+correspondente ao identificador da scan chain utilizado.
+
+Caso o identificador seja desconhecido, uma `ScanChainException`
+é gerada.
+
+A análise mostrou que os componentes são organizados conceitualmente
+em uma cadeia:
+
+master
+→ injector 1
+→ injector 2
+→ ...
+→ master
+
+As conexões são representadas através de `SourceAnnotation` e
+`SinkAnnotation`, que posteriormente são utilizadas pelo
+`WiringTransform`.
+
+### 5. Identificação da geração de scan-chain.json
+
+Durante a análise de `ScanChainTransform.scala`, foi identificado que
+o framework gera o arquivo:
+
+`scan-chain.json`
+
+Esse arquivo contém uma representação das scan chains e dos componentes
+fault-injectable associados a elas.
+
+A geração desse arquivo demonstra que o framework mantém informações
+sobre a infraestrutura de fault injection além da própria modificação
+do circuito.
+
+## Arquitetura consolidada do Chiffre
+
+Após as análises realizadas em 09/09/2026 e 10/09/2026, foi possível
+consolidar o seguinte fluxo:
+
+`isFaulty(component, scanId, Injector)`
+→ `FaultInjectionAnnotation`
+→ `FaultInstrumentationTransform`
+→ `FaultInstrumentation`
+→ instanciação do fault injector
+→ criação do sinal instrumentado
+→ redirecionamento das referências
+→ criação das anotações de scan chain
+→ `ScanChainTransform`
+→ organização da cadeia de injectors
+→ `WiringTransform`
+→ conexões da infraestrutura
+→ geração de `scan-chain.json`
+
+Também foram previamente identificados os três mecanismos principais
+de fault injection:
+
+- `StuckAtInjector`;
+- `CycleInjector`;
+- `LfsrInjector`.
+
+## Resultados obtidos
+
+A atividade permitiu compreender como o Chiffre passa da seleção de um
+componente para uma implementação instrumentada do circuito.
+
+Foi confirmado que o framework utiliza annotations e transforms FIRRTL
+para automatizar a inserção dos fault injectors.
+
+Também foi compreendido como os injectors são associados a uma scan
+chain responsável por sua configuração.
+
+Com isso, a análise realizada até o momento permite compreender:
+
+- como um componente é selecionado como alvo;
+- como o tipo de injector é especificado;
+- como o injector é inserido no circuito;
+- como o sinal original é redirecionado;
+- como os injectors são associados à scan chain;
+- como a cadeia de configuração é organizada;
+- como informações sobre os componentes instrumentados são exportadas.
+
+Esses resultados são considerados suficientes para utilizar o Chiffre
+como uma primeira referência metodológica e arquitetural do projeto.
+
+Não foi realizada uma análise exaustiva de todos os arquivos do
+repositório, pois o objetivo do estudo é compreender os conceitos
+relevantes para o projeto RVX e não reproduzir integralmente o
+desenvolvimento do framework.
+
+## Relação com o RVX
+
+A análise do Chiffre mostrou uma estratégia baseada em instrumentação
+estrutural do circuito através de FIRRTL.
+
+A aplicabilidade direta dessa implementação ao RVX ainda não foi
+determinada.
+
+Será necessário posteriormente verificar:
+
+- o formato e fluxo do RTL utilizado pelo RVX;
+- a compatibilidade com FIRRTL;
+- a possibilidade de reutilização direta de componentes do Chiffre;
+- ou a necessidade de implementar uma estratégia equivalente compatível
+  com o ambiente do RVX.
+
+O Chiffre será considerado inicialmente como referência para essa
+decisão, e não como ferramenta definitivamente escolhida para o projeto.
+
+## Decisão de escopo
+
+Foi definido que não será realizada, neste momento, uma análise
+exaustiva de todo o repositório Chiffre.
+
+A análise realizada é considerada suficiente para esta etapa da revisão.
+
+O foco das próximas atividades deverá retornar ao objetivo principal do
+projeto: definir e executar uma estratégia de verificação e fault
+injection aplicável às diferentes versões do RVX.
+
+Também deverá ser definida com o grupo a divisão das responsabilidades,
+buscando permitir que cada integrante acompanhe uma frente ou versão do
+processador desde a preparação até a obtenção e análise dos resultados.
+
+## Pendências / Próximos passos
+
+- Avançar para outras referências bibliográficas sobre fault injection
+  em RISC-V.
+- Priorizar trabalhos envolvendo RISC-V, TMR e tolerância a falhas.
+- Comparar a metodologia do Chiffre com outras estratégias encontradas
+  na literatura.
+- Investigar o RTL e o fluxo das versões do RVX disponibilizadas no
+  projeto.
+- Definir com o grupo a divisão de responsabilidades.
+- Identificar os pontos do RVX que poderão ser utilizados como alvos de
+  fault injection.
+- Definir posteriormente os modelos de falha que serão utilizados.
+- Identificar benchmarks adequados.
+- Definir métricas para comparação entre as versões.
+- Avaliar a estratégia de verificação a ser utilizada no projeto.
+- Investigar se conceitos do Chiffre poderão ser reutilizados ou
+  adaptados ao RVX.
+
+## Status ao final da atividade
+
+**Chiffre: análise suficiente para esta etapa concluída.**
+
+Isso significa que foram analisados os elementos necessários para
+compreender a arquitetura principal de fault injection do framework.
+
+Não significa que todos os arquivos do repositório foram analisados.
+
+O Chiffre permanece como referência para as próximas decisões sobre
+a metodologia de fault injection do projeto.
+
+# Atividades de 10/09/2026 – registro em andamento

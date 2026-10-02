@@ -1,0 +1,289 @@
+# Diário de Atividades – 09/09/2026
+
+**Data:** 09/09/2026  
+**Horário:** 14:20 – 18:20  
+**Local:** Laboratório  
+**Projeto:** CI-EXPERT – Fase 2
+
+## Objetivo do dia
+
+Iniciar a organização e documentação das atividades do projeto e dar
+início à revisão bibliográfica sobre metodologias de verificação e
+injeção de falhas aplicadas a processadores RISC-V, visando subsidiar
+a definição da metodologia a ser utilizada no RVX e em suas versões
+com redundância.
+
+## Atividades realizadas
+
+- Estruturação inicial das pastas do projeto `ci-expert-fase2`.
+- Criação de estrutura para documentação, revisão bibliográfica, papers,
+  fault injection, verificação, scripts e resultados.
+- Criação do diário de atividades.
+- Início da revisão bibliográfica sobre verificação e fault injection
+  em processadores RISC-V.
+- Busca no Google Scholar utilizando `"RISC-V" "fault injection"`.
+- Identificação de trabalhos relacionados a frameworks e metodologias
+  de fault injection.
+- Seleção do paper **“Chiffre: A Configurable Hardware Fault Injection
+  Framework for RISC-V Systems”** para análise inicial.
+- Leitura e análise inicial do paper.
+- Identificação do Rocket Chip como processador RISC-V utilizado no
+  estudo de caso.
+- Identificação de Chisel e FIRRTL como tecnologias utilizadas para
+  instrumentação.
+- Identificação da scan chain como mecanismo de configuração dos
+  fault injectors.
+- Identificação dos modelos de falha `StuckAt`, `CycleInjector` e
+  `LfsrInjector`.
+- Identificação da existência de implementação open source do Chiffre.
+- Análise inicial do repositório público.
+- Identificação dos modos **Standalone Injection** e
+  **Rocket-Chip Assisted Injection**.
+- Identificação do método `isFaulty` utilizado para indicar componentes
+  que deverão receber instrumentação.
+- Identificação do `LeChiffre`, implementado como um Rocket Custom
+  Coprocessor (RoCC).
+- Identificação de patch para instrumentação de CSRs do Rocket Chip.
+- Identificação da existência de testes bare-metal.
+- Verificação da forte relação do framework com Scala, Chisel e FIRRTL.
+- Navegação até `src/main/scala/chiffre/inject`.
+- Identificação dos arquivos `Injector.scala`, `IdentityInjector.scala`,
+  `StuckAt.scala`, `CycleInjector.scala` e `LfsrInjector.scala`.
+
+### Análise de Injector.scala
+
+- Análise da estrutura base dos fault injectors.
+- Identificação das interfaces de entrada, saída e scan.
+- Identificação do estado `enabled`.
+- Identificação de `InjectorBitwise`.
+- Verificação de que injectors individuais podem ser utilizados para
+  construir mecanismos para sinais de múltiplos bits.
+- Identificação conceitual da inserção de uma camada de fault injection
+  entre o sinal original e o restante do circuito.
+
+### Análise de StuckAt.scala
+
+- Identificação de `mask` para selecionar os bits afetados.
+- Identificação de `value` para determinar os valores forçados.
+- Análise da lógica de substituição dos bits.
+- Confirmação da possibilidade de representar stuck-at-0 e stuck-at-1.
+- Identificação da configuração através da scan chain.
+- Identificação de `StuckAtInjectorInfo`.
+- Levantamento do mecanismo como referência potencial para injeção de
+  falhas permanentes no RVX.
+
+### Análise de CycleInjector.scala
+
+- Análise do mecanismo utilizado para realizar bit-flips em ciclos
+  específicos.
+- Identificação de `cycleTarget`, responsável por definir o ciclo alvo.
+- Identificação de `cycleCounter`, utilizado para acompanhar os ciclos
+  enquanto o injector está habilitado.
+- Identificação de `flipMask`, utilizada para selecionar os bits que
+  deverão ser invertidos.
+- Identificação da condição de disparo baseada na igualdade entre
+  `cycleCounter` e `cycleTarget`.
+- Identificação da utilização de XOR entre a entrada e `flipMask` para
+  realizar o bit-flip.
+- Verificação de que o injector é desabilitado após a ocorrência da
+  injeção.
+- Identificação da configuração de `cycleTarget` e `flipMask` através
+  da scan chain.
+- Identificação de `CycleInjector32`, utilizando largura de 32 bits para
+  o controle do ciclo.
+- Levantamento desse mecanismo como referência para experimentos
+  reproduzíveis em ciclos específicos no RVX.
+
+### Análise de LfsrInjector.scala
+
+- Análise do mecanismo de bit-flip controlado por LFSR.
+- Identificação de `seed` como parâmetro utilizado para inicialização
+  do LFSR.
+- Identificação de `difficulty` como parâmetro utilizado na condição de
+  disparo da falha.
+- Identificação da instância `perfect.random.Lfsr`.
+- Identificação da condição de disparo baseada na comparação da saída
+  do LFSR com `difficulty`.
+- Identificação da inversão do bit de entrada quando ocorre o disparo.
+- Identificação da configuração de `seed` e `difficulty` através da
+  scan chain.
+- Identificação de `LfsrInjectorN`, que utiliza `InjectorBitwise` para
+  sinais de múltiplos bits.
+- Identificação de `LfsrInjector32`.
+- Registro de que ainda é necessário analisar a implementação interna
+  do LFSR antes de estabelecer quantitativamente a relação entre
+  `difficulty` e probabilidade de falha.
+
+### Comparação inicial dos mecanismos
+
+Foi possível estabelecer uma primeira comparação:
+
+| Mecanismo | Configuração principal | Efeito |
+|---|---|---|
+| `StuckAtInjector` | `mask` + `value` | força bits para 0 ou 1 |
+| `CycleInjector` | `cycleTarget` + `flipMask` | bit-flip em ciclo específico |
+| `LfsrInjector` | `seed` + `difficulty` | bit-flip pseudoaleatório |
+
+A análise mostrou que o Chiffre oferece mecanismos que permitem variar
+o tipo de falha, os bits afetados e, dependendo do injector, o momento
+ou comportamento temporal da injeção.
+
+### Relação inicial com o RVX
+
+Foi levantada a possibilidade de utilizar os conceitos encontrados no
+Chiffre como referência para uma futura infraestrutura de fault injection
+no RVX.
+
+Uma campanha poderá futuramente considerar parâmetros como:
+
+ponto de injeção  
++ bit afetado  
++ modelo de falha  
++ momento da injeção  
++ execução de benchmark  
++ classificação do resultado
+
+Essa possibilidade ainda não representa a metodologia definitiva do
+projeto.
+
+Ainda deverá ser investigado se partes do Chiffre podem ser adaptadas
+diretamente ou se será mais adequado implementar uma infraestrutura
+própria compatível com o RTL do RVX.
+
+### Infraestrutura do projeto
+
+- Análise das informações disponibilizadas pelo professor sobre a
+  infraestrutura existente para utilização do RVX.
+- Identificação do pacote
+  `/home/ciexpert/compartilhado/riscv_exemple.tar.gz`.
+- Identificação de que o pacote contém setups, flows e RTLs relacionados
+  ao RISC-V/RVX.
+- Identificação da existência de diferentes variações do RVX, incluindo
+  implementações convencionais e tolerantes a falhas.
+- Identificação da disponibilidade de flows de referência utilizando
+  IHP130 e SAED32.
+- Registro da existência de materiais e repositórios de referência para
+  análise posterior.
+
+## Referências encontradas
+
+### 1. Chiffre: A Configurable Hardware Fault Injection Framework for RISC-V Systems
+
+**Autores:** Schuyler Eldridge, Alper Buyuktosunoglu e Pradip Bose  
+**Ano:** 2018  
+**Publicação:** CARRV 2018
+
+O trabalho apresenta um framework configurável e open source para
+fault injection em hardware, utilizando o RISC-V Rocket Chip como
+estudo de caso.
+
+Durante o dia foram analisados o paper, o repositório e quatro arquivos
+centrais relacionados aos mecanismos de injeção:
+
+- `Injector.scala`;
+- `StuckAt.scala`;
+- `CycleInjector.scala`;
+- `LfsrInjector.scala`.
+
+A análise permitiu compreender a estrutura base dos injectors e três
+modelos diferentes de falha.
+
+**Status ao final do dia:** análise inicial do paper e dos principais
+fault injectors concluída. A análise integral do framework ainda não
+está concluída, permanecendo pendentes componentes relacionados a
+instrumentação, passes FIRRTL, scan chain, dependências e possível
+integração com o RVX.
+
+### 2. RVX
+
+Foi identificada a disponibilidade de código e materiais relacionados
+ao processador RVX.
+
+Também foi identificada a existência de diferentes versões, incluindo
+implementações convencionais e tolerantes a falhas.
+
+**Status:** análise técnica pendente.
+
+### 3. Ambiente de referência CI-EXPERT
+
+Foi identificado o pacote:
+
+`/home/ciexpert/compartilhado/riscv_exemple.tar.gz`
+
+O material deverá ser analisado posteriormente para identificar os RTLs,
+flows e versões do RVX diretamente relevantes para o projeto.
+
+**Status:** análise pendente.
+
+## Resultados obtidos
+
+Ao final das atividades de 09/09/2026, foi criada uma estrutura inicial
+para documentação e organização do projeto e iniciada formalmente a
+revisão bibliográfica.
+
+O Chiffre foi utilizado como primeira referência aprofundada de fault
+injection aplicada a RISC-V.
+
+A análise avançou além do paper e alcançou o código-fonte dos principais
+mecanismos de injeção.
+
+Foi possível compreender:
+
+- a estrutura base dos injectors;
+- o mecanismo de falhas stuck-at;
+- o mecanismo de bit-flip em ciclo específico;
+- o mecanismo de bit-flip controlado por LFSR;
+- a utilização da scan chain para configuração;
+- a composição bit a bit de determinados injectors.
+
+A análise também permitiu começar a identificar dimensões que poderão
+ser importantes para a futura metodologia do projeto, como ponto de
+injeção, bit afetado, modelo de falha e instante de injeção.
+
+Esses elementos ainda não constituem a metodologia definitiva.
+
+Também foi identificada a necessidade de relacionar os mecanismos
+encontrados na literatura com a arquitetura e o RTL das diferentes
+versões do RVX.
+
+A análise completa do Chiffre não foi encerrada neste dia. Permanecem
+partes do framework que poderão precisar de análise adicional.
+
+## Pendências / Próximos passos
+
+- Avaliar na próxima sessão se a análise do Chiffre deverá ser
+  aprofundada imediatamente ou se a revisão deverá avançar para um
+  segundo paper.
+- Caso necessário, analisar `passes`, `scan`, `Instrumentation.scala`
+  e `ScanChain.scala`.
+- Investigar a implementação de `perfect.random.Lfsr`.
+- Verificar as dependências e possibilidade de compilação do Chiffre.
+- Investigar a compatibilidade entre Chisel/FIRRTL e o fluxo do RVX.
+- Investigar se será mais adequado adaptar conceitos do Chiffre ou
+  implementar uma infraestrutura própria.
+- Continuar a revisão bibliográfica sobre `RISC-V fault injection`.
+- Priorizar trabalhos envolvendo RISC-V e TMR/tolerância a falhas.
+- Pesquisar `RISC-V formal verification`.
+- Investigar metodologias de verificação de processadores RISC-V.
+- Identificar métricas para campanhas de fault injection.
+- Identificar benchmarks para avaliação.
+- Analisar posteriormente o pacote `riscv_exemple.tar.gz`.
+- Identificar as versões do RVX que serão utilizadas nos experimentos.
+- Definir posteriormente, junto ao grupo e aos orientadores, a abordagem
+  de verificação mais adequada: formal, UVM ou híbrida.
+- Definir posteriormente a metodologia de comparação entre a versão
+  convencional e as versões tolerantes a falhas do RVX.
+
+## Encerramento
+
+As atividades previstas para esta sessão foram encerradas às 18:20.
+
+O trabalho realizado estabeleceu a organização inicial do projeto e
+produziu uma primeira análise aprofundada de uma referência de fault
+injection para RISC-V, incluindo a investigação do código-fonte dos
+principais modelos de falha do Chiffre.
+
+As questões que permanecem abertas foram registradas para continuidade
+na próxima sessão.
+
+# Fim do dia – 09/09/2026
