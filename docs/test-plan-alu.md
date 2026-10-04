@@ -280,6 +280,122 @@ Calcular no scoreboard o AND bit a bit entre `rs1_data` e `rs2_data` e comparar 
 - Resultado com combinação de bits zero e um.
 - Padrões alternados e parcialmente coincidentes.
 
+### TP-ALU-005 — ANDI
+
+**Requisito da ISA:**  
+Realizar AND bit a bit entre `rs1` e o imediato de 12 bits estendido com sinal.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_AND`, com `rs1_data` e o imediato estendido.
+
+**Estímulos e resultados esperados:**
+
+- `0xFFFFFFFF AND 0 = 0x00000000`
+- `0xFFFFFFFF AND (-1) = 0xFFFFFFFF`
+- `0xAAAAAAAA AND 0x0FF = 0x000000AA`
+- `0x12345678 AND 0x00F = 0x00000008`
+
+**Casos de borda:** imediato zero, `-1`, positivo e negativo.
+
+**Forma de checagem:**  
+Estender o imediato com sinal, realizar AND no scoreboard e comparar com `rd`.
+
+**Cobertura:**  
+Execução de `ANDI`, imediatos positivos, negativos e resultado zero.
+
+### TP-ALU-006 — OR
+
+**Requisito da ISA:**  
+Realizar OR bit a bit entre os valores de `rs1` e `rs2`.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_OR`, com `rs1_data` e `rs2_data`.
+
+**Estímulos e resultados esperados:**
+
+- `0x00000000 OR 0x00000000 = 0x00000000`
+- `0x00000000 OR 0xFFFFFFFF = 0xFFFFFFFF`
+- `0xAAAAAAAA OR 0x55555555 = 0xFFFFFFFF`
+- `0xFF00FF00 OR 0x0F0F0F0F = 0xFF0FFF0F`
+
+**Casos de borda:** operandos zero, todos os bits em um e padrões alternados.
+
+**Forma de checagem:**  
+Realizar OR no scoreboard e comparar o resultado com `rd`.
+
+**Cobertura:**  
+Execução de `OR` e resultados zero, todos em um e bits combinados.
+
+### TP-ALU-007 — ORI
+
+**Requisito da ISA:**  
+Realizar OR bit a bit entre `rs1` e o imediato de 12 bits estendido com sinal.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_OR`, com `rs1_data` e o imediato estendido.
+
+**Estímulos e resultados esperados:**
+
+- `0x00000000 OR 0 = 0x00000000`
+- `0x00000000 OR (-1) = 0xFFFFFFFF`
+- `0x12345600 OR 0x078 = 0x12345678`
+- `0xAAAAAAAA OR 0x055 = 0xAAAAAAFF`
+
+**Casos de borda:** imediato zero, `-1`, positivo e negativo.
+
+**Forma de checagem:**  
+Estender o imediato com sinal, realizar OR no scoreboard e comparar com `rd`.
+
+**Cobertura:**  
+Execução de `ORI`, imediatos positivos, negativos e resultado com todos os bits em um.
+
+### TP-ALU-008 — XOR
+
+**Requisito da ISA:**  
+Realizar XOR bit a bit entre os valores de `rs1` e `rs2`.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_XOR`, com `rs1_data` e `rs2_data`.
+
+**Estímulos e resultados esperados:**
+
+- `0x00000000 XOR 0x00000000 = 0x00000000`
+- `0xFFFFFFFF XOR 0xFFFFFFFF = 0x00000000`
+- `0xAAAAAAAA XOR 0x55555555 = 0xFFFFFFFF`
+- `0xF0F0F0F0 XOR 0x0F0F0F0F = 0xFFFFFFFF`
+- `0x12345678 XOR 0x00000000 = 0x12345678`
+
+**Casos de borda:** operandos iguais, zero e padrões alternados.
+
+**Forma de checagem:**  
+Realizar XOR no scoreboard e comparar o resultado com `rd`.
+
+**Cobertura:**  
+Execução de `XOR` e resultados zero, todos em um e valores mistos.
+
+### TP-ALU-009 — XORI
+
+**Requisito da ISA:**  
+Realizar XOR bit a bit entre `rs1` e o imediato de 12 bits estendido com sinal.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_XOR`, com `rs1_data` e o imediato estendido.
+
+**Estímulos e resultados esperados:**
+
+- `0x00000000 XOR 0 = 0x00000000`
+- `0xFFFFFFFF XOR (-1) = 0x00000000`
+- `0xAAAAAAAA XOR 0x055 = 0xAAAAAAFF`
+- `0x12345678 XOR 0x000000FF = 0x12345687`
+
+**Casos de borda:** imediato zero, `-1`, positivo e negativo.
+
+**Forma de checagem:**  
+Estender o imediato com sinal, realizar XOR no scoreboard e comparar com `rd`.
+
+**Cobertura:**  
+Execução de `XORI`, imediatos positivos, negativos e resultados zero e não zero.
+
 
 
 \*\*Forma de checagem:\*\*  
