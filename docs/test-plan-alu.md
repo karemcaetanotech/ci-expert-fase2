@@ -396,6 +396,106 @@ Estender o imediato com sinal, realizar XOR no scoreboard e comparar com `rd`.
 **Cobertura:**  
 Execução de `XORI`, imediatos positivos, negativos e resultados zero e não zero.
 
+### TP-ALU-010 — SLT
+
+**Requisito da ISA:**  
+Comparar `rs1` e `rs2` como números com sinal. Gravar `1` em `rd` quando `rs1` for menor que `rs2`; caso contrário, gravar `0`.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SLT`, com comparação com sinal entre `rs1_data` e `rs2_data`.
+
+**Estímulos e resultados esperados:**
+
+- `0 < 1 = 1`
+- `1 < 0 = 0`
+- `-1 < 0 = 1`
+- `0 < -1 = 0`
+- `-2147483648 < 2147483647 = 1`
+- `10 < 10 = 0`
+
+**Casos de borda:** valores iguais, negativos e limites signed de 32 bits.
+
+**Forma de checagem:**  
+Realizar comparação signed no scoreboard e comparar o resultado `0` ou `1` com `rd`.
+
+**Cobertura:**  
+Resultado verdadeiro e falso; operandos positivos, negativos, iguais e limites.
+
+### TP-ALU-011 — SLTI
+
+**Requisito da ISA:**  
+Comparar `rs1` com o imediato de 12 bits estendido com sinal, tratando ambos como números com sinal.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SLT`, com `rs1_data` e o imediato estendido com sinal.
+
+**Estímulos e resultados esperados:**
+
+- `0 < 1 = 1`
+- `1 < 0 = 0`
+- `-1 < 0 = 1`
+- `0 < -1 = 0`
+- `5 < 5 = 0`
+- `-2048 < 2047 = 1`
+
+**Casos de borda:** imediato zero, negativo, limites `-2048` e `2047`, e valores iguais.
+
+**Forma de checagem:**  
+Estender o imediato com sinal, realizar comparação signed no scoreboard e comparar com `rd`.
+
+**Cobertura:**  
+Resultado verdadeiro e falso; imediatos positivos, negativos, zero e limites.
+
+### TP-ALU-012 — SLTU
+
+**Requisito da ISA:**  
+Comparar `rs1` e `rs2` como números sem sinal. Gravar `1` quando `rs1` for menor que `rs2`; caso contrário, gravar `0`.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SLTU`, com comparação unsigned entre `rs1_data` e `rs2_data`.
+
+**Estímulos e resultados esperados:**
+
+- `0x00000000 < 0x00000001 = 1`
+- `0x00000001 < 0x00000000 = 0`
+- `0x00000000 < 0xFFFFFFFF = 1`
+- `0xFFFFFFFF < 0x00000000 = 0`
+- `0x80000000 < 0x7FFFFFFF = 0`
+- `0xFFFFFFFF < 0xFFFFFFFF = 0`
+
+**Casos de borda:** zero, maior valor unsigned, valores iguais e bit mais significativo ativo.
+
+**Forma de checagem:**  
+Realizar comparação unsigned no scoreboard e comparar o resultado `0` ou `1` com `rd`.
+
+**Cobertura:**  
+Resultado verdadeiro e falso; zero, máximo unsigned, igualdade e valores com bit 31 ativo.
+
+### TP-ALU-013 — SLTIU
+
+**Requisito da ISA:**  
+Comparar `rs1` e o imediato estendido com sinal, interpretando os dois valores resultantes como números sem sinal.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SLTU`, com `rs1_data` e o imediato estendido.
+
+**Estímulos e resultados esperados:**
+
+- `0 < 1 = 1`
+- `1 < 0 = 0`
+- `5 < 10 = 1`
+- `10 < 5 = 0`
+- `0x00000000 < 0xFFFFFFFF` (`-1` estendido) `= 1`
+- `0xFFFFFFFF < 0xFFFFFFFF` (`-1` estendido) `= 0`
+
+**Casos de borda:** imediato zero, positivo, negativo, valores iguais e extensão de sinal de `-1`.
+
+**Forma de checagem:**  
+Estender o imediato com sinal, interpretar os operandos como unsigned e comparar o resultado com `rd`.
+
+**Cobertura:**  
+Resultado verdadeiro e falso; imediatos positivos, negativos e zero; valores unsigned extremos.
+
 
 
 \*\*Forma de checagem:\*\*  
