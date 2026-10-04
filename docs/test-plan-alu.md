@@ -122,3 +122,89 @@ Calcular o resultado esperado no scoreboard e comparar com o valor produzido pel
 
 \- Overflow e retorno ao valor zero.
 
+
+
+\### TP-ALU-002 — SUB
+
+
+
+\*\*Requisito da ISA:\*\*  
+
+A instrução `SUB` deve subtrair o valor de 32 bits armazenado em `rs2` do valor armazenado em `rs1`. O resultado gravado em `rd` deve conter os 32 bits menos significativos. O overflow deve ser ignorado.
+
+
+
+\*\*Correspondência no RTL:\*\*  
+
+A operação utiliza `FUNCT3\_ADD`, com o controle de subtração habilitado e os operandos provenientes de `rs1\_data` e `rs2\_data`.
+
+
+
+\*\*Estímulos:\*\*
+
+
+
+\- `0 - 0`
+
+\- `5 - 3`
+
+\- `3 - 5`
+
+\- `-1 - 1`
+
+\- `0x80000000 - 1`
+
+\- `0x00000000 - 1`
+
+
+
+\*\*Resultados esperados:\*\*
+
+
+
+\- `0 - 0 = 0`
+
+\- `5 - 3 = 2`
+
+\- `3 - 5 = -2` (`0xFFFFFFFE`)
+
+\- `-1 - 1 = -2` (`0xFFFFFFFE`)
+
+\- `0x80000000 - 1 = 0x7FFFFFFF`
+
+\- `0x00000000 - 1 = 0xFFFFFFFF`
+
+
+
+\*\*Casos de borda:\*\*
+
+
+
+\- Operandos iguais a zero.
+
+\- Resultado negativo.
+
+\- Menor valor inteiro representável em 32 bits.
+
+\- Underflow com descarte dos bits acima de 32 bits.
+
+
+
+\*\*Forma de checagem:\*\*  
+
+Calcular o resultado esperado no scoreboard e comparar com o valor produzido pela ALU e gravado em `rd`.
+
+
+
+\*\*Cobertura:\*\*
+
+
+
+\- Execução da instrução `SUB`.
+
+\- Operandos zero, positivos e negativos.
+
+\- Resultado zero, positivo e negativo.
+
+\- Underflow e retorno ao maior valor positivo.
+
