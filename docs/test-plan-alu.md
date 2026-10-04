@@ -496,6 +496,150 @@ Estender o imediato com sinal, interpretar os operandos como unsigned e comparar
 **Cobertura:**  
 Resultado verdadeiro e falso; imediatos positivos, negativos e zero; valores unsigned extremos.
 
+### TP-ALU-014 — SLL
+
+**Requisito da ISA:**  
+Deslocar `rs1` logicamente para a esquerda. A quantidade de deslocamento deve ser definida pelos cinco bits menos significativos de `rs2`.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SLL`, com `rs1_data` e a quantidade indicada por `rs2_data[4:0]`.
+
+**Estímulos e resultados esperados:**
+
+- `0x00000001 << 0 = 0x00000001`
+- `0x00000001 << 1 = 0x00000002`
+- `0x00000001 << 31 = 0x80000000`
+- `0xFFFFFFFF << 1 = 0xFFFFFFFE`
+- Deslocamento indicado por `rs2 = 32`: usa `rs2[4:0] = 0`
+
+**Casos de borda:** deslocamentos 0, 1 e 31; descarte de bits; `rs2` maior que 31.
+
+**Forma de checagem:**  
+Usar `rs2[4:0]`, calcular o deslocamento no scoreboard e comparar com `rd`.
+
+**Cobertura:**  
+Deslocamentos 0 a 31, descarte de bits e resultado zero ou com bit 31 ativo.
+
+### TP-ALU-015 — SLLI
+
+**Requisito da ISA:**  
+Deslocar `rs1` logicamente para a esquerda usando o campo imediato `shamt`, limitado a valores de 0 a 31.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SLL`, com `rs1_data` e o `shamt` imediato.
+
+**Estímulos e resultados esperados:**
+
+- `0x00000001 << 0 = 0x00000001`
+- `0x00000001 << 1 = 0x00000002`
+- `0x00000001 << 31 = 0x80000000`
+- `0x80000000 << 1 = 0x00000000`
+- `0xFFFFFFFF << 4 = 0xFFFFFFF0`
+
+**Casos de borda:** `shamt` 0 e 31, descarte de bits e resultado zero.
+
+**Forma de checagem:**  
+Calcular o deslocamento usando o `shamt` e comparar com `rd`.
+
+**Cobertura:**  
+Valores mínimo, intermediários e máximo de `shamt`; descarte de bits.
+
+### TP-ALU-016 — SRL
+
+**Requisito da ISA:**  
+Deslocar `rs1` logicamente para a direita, preenchendo os bits superiores com zero. Usar os cinco bits menos significativos de `rs2`.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SRL`, selecionando deslocamento lógico e `rs2_data[4:0]`.
+
+**Estímulos e resultados esperados:**
+
+- `0x80000000 >> 0 = 0x80000000`
+- `0x80000000 >> 1 = 0x40000000`
+- `0xFFFFFFFF >> 1 = 0x7FFFFFFF`
+- `0xFFFFFFFF >> 31 = 0x00000001`
+- Deslocamento indicado por `rs2 = 32`: usa `rs2[4:0] = 0`
+
+**Casos de borda:** deslocamentos 0 e 31, bit 31 ativo e `rs2` maior que 31.
+
+**Forma de checagem:**  
+Usar `rs2[4:0]`, calcular o deslocamento lógico no scoreboard e comparar com `rd`.
+
+**Cobertura:**  
+Deslocamentos 0 a 31, preenchimento com zero e bit de sinal ativo.
+
+### TP-ALU-017 — SRLI
+
+**Requisito da ISA:**  
+Deslocar `rs1` logicamente para a direita, preenchendo com zeros, usando `shamt` de 0 a 31.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SRL`, selecionando deslocamento lógico e o `shamt` imediato.
+
+**Estímulos e resultados esperados:**
+
+- `0x80000000 >> 0 = 0x80000000`
+- `0x80000000 >> 1 = 0x40000000`
+- `0xFFFFFFFF >> 1 = 0x7FFFFFFF`
+- `0xFFFFFFFF >> 31 = 0x00000001`
+- `0x00000001 >> 1 = 0x00000000`
+
+**Casos de borda:** `shamt` 0 e 31, preenchimento com zero e resultado zero.
+
+**Forma de checagem:**  
+Calcular o deslocamento lógico usando `shamt` e comparar com `rd`.
+
+**Cobertura:**  
+Valores mínimo e máximo de `shamt`, bit 31 ativo e resultado zero.
+
+### TP-ALU-018 — SRA
+
+**Requisito da ISA:**  
+Deslocar `rs1` aritmeticamente para a direita, preservando o sinal. Usar os cinco bits menos significativos de `rs2`.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SRL`, selecionando deslocamento aritmético e `rs2_data[4:0]`.
+
+**Estímulos e resultados esperados:**
+
+- `0x7FFFFFFF >>> 1 = 0x3FFFFFFF`
+- `0x80000000 >>> 1 = 0xC0000000`
+- `0xFFFFFFFF >>> 1 = 0xFFFFFFFF`
+- `0x80000000 >>> 31 = 0xFFFFFFFF`
+- Deslocamento indicado por `rs2 = 32`: usa `rs2[4:0] = 0`
+
+**Casos de borda:** valores positivos e negativos, deslocamentos 0 e 31 e preservação do sinal.
+
+**Forma de checagem:**  
+Interpretar `rs1` como signed, usar `rs2[4:0]` e comparar o resultado com `rd`.
+
+**Cobertura:**  
+Operandos positivos e negativos, extensão do sinal e deslocamentos 0 a 31.
+
+### TP-ALU-019 — SRAI
+
+**Requisito da ISA:**  
+Deslocar `rs1` aritmeticamente para a direita, preservando o sinal, usando `shamt` de 0 a 31.
+
+**Correspondência no RTL:**  
+Utiliza `FUNCT3_SRL`, selecionando deslocamento aritmético e o `shamt` imediato.
+
+**Estímulos e resultados esperados:**
+
+- `0x7FFFFFFF >>> 1 = 0x3FFFFFFF`
+- `0x80000000 >>> 1 = 0xC0000000`
+- `0xFFFFFFFF >>> 1 = 0xFFFFFFFF`
+- `0x80000000 >>> 31 = 0xFFFFFFFF`
+- `0x00000001 >>> 1 = 0x00000000`
+
+**Casos de borda:** `shamt` 0 e 31, valores positivos e negativos e preservação do sinal.
+
+**Forma de checagem:**  
+Interpretar `rs1` como signed, realizar o deslocamento usando `shamt` e comparar com `rd`.
+
+**Cobertura:**  
+Operandos positivos e negativos, extensão do sinal e limites de `shamt`.
+
 
 
 \*\*Forma de checagem:\*\*  
