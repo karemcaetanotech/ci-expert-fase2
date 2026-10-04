@@ -235,6 +235,51 @@ Estender o imediato de 12 bits com sinal, calcular o resultado esperado no score
 - Resultado zero, positivo e negativo.
 - Overflow.
 
+### TP-ALU-004 — AND
+
+**Requisito da ISA:**  
+A instrução `AND` deve realizar a operação lógica AND bit a bit entre os valores de 32 bits armazenados em `rs1` e `rs2`. O resultado deve ser gravado em `rd`.
+
+**Correspondência no RTL:**  
+A operação utiliza `FUNCT3_AND`, com os operandos provenientes de `rs1_data` e `rs2_data`.
+
+**Estímulos:**
+
+- `0x00000000 AND 0x00000000`
+- `0x00000000 AND 0xFFFFFFFF`
+- `0xFFFFFFFF AND 0xFFFFFFFF`
+- `0xAAAAAAAA AND 0x55555555`
+- `0xF0F0F0F0 AND 0x0F0F0F0F`
+- `0xFF00FF00 AND 0x0F0F0F0F`
+
+**Resultados esperados:**
+
+- `0x00000000`
+- `0x00000000`
+- `0xFFFFFFFF`
+- `0x00000000`
+- `0x00000000`
+- `0x0F000F00`
+
+**Casos de borda:**
+
+- Ambos os operandos iguais a zero.
+- Um operando igual a zero.
+- Todos os bits iguais a um.
+- Padrões de bits alternados.
+- Operandos com bits parcialmente coincidentes.
+
+**Forma de checagem:**  
+Calcular no scoreboard o AND bit a bit entre `rs1_data` e `rs2_data` e comparar com o valor produzido pela ALU e gravado em `rd`.
+
+**Cobertura:**
+
+- Execução da instrução `AND`.
+- Resultado com todos os bits em zero.
+- Resultado com todos os bits em um.
+- Resultado com combinação de bits zero e um.
+- Padrões alternados e parcialmente coincidentes.
+
 
 
 \*\*Forma de checagem:\*\*  
