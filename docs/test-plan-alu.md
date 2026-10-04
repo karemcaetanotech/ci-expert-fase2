@@ -188,6 +188,53 @@ A operação utiliza `FUNCT3\_ADD`, com o controle de subtração habilitado e o
 
 \- Underflow com descarte dos bits acima de 32 bits.
 
+### TP-ALU-003 — ADDI
+
+**Requisito da ISA:**  
+A instrução `ADDI` deve somar o valor de 32 bits armazenado em `rs1` a um imediato de 12 bits estendido com sinal. O resultado gravado em `rd` deve conter os 32 bits menos significativos da soma. O overflow deve ser ignorado.
+
+**Correspondência no RTL:**  
+A operação utiliza `FUNCT3_ADD`, com o primeiro operando vindo de `rs1_data` e o segundo operando vindo do valor imediato estendido com sinal.
+
+**Estímulos:**
+
+- `0 + 0`
+- `10 + 5`
+- `10 + (-5)`
+- `0 + 2047`
+- `0 + (-2048)`
+- `0x7FFFFFFF + 1`
+- `0xFFFFFFFF + 1`
+
+**Resultados esperados:**
+
+- `0 + 0 = 0`
+- `10 + 5 = 15`
+- `10 + (-5) = 5`
+- `0 + 2047 = 0x000007FF`
+- `0 + (-2048) = 0xFFFFF800`
+- `0x7FFFFFFF + 1 = 0x80000000`
+- `0xFFFFFFFF + 1 = 0x00000000`
+
+**Casos de borda:**
+
+- Imediato igual a zero.
+- Maior imediato positivo: `2047`.
+- Menor imediato negativo: `-2048`.
+- Extensão de sinal de valores negativos.
+- Overflow com descarte dos bits acima de 32 bits.
+
+**Forma de checagem:**  
+Estender o imediato de 12 bits com sinal, calcular o resultado esperado no scoreboard e comparar com o valor produzido pela ALU e gravado em `rd`.
+
+**Cobertura:**
+
+- Execução da instrução `ADDI`.
+- Imediatos zero, positivos e negativos.
+- Limites do imediato de 12 bits.
+- Resultado zero, positivo e negativo.
+- Overflow.
+
 
 
 \*\*Forma de checagem:\*\*  
